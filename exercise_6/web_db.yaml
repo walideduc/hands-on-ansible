@@ -1,13 +1,38 @@
 ---
 - hosts: webservers
   sudo: yes
+  vars: 
+    http_port: 80
+    doc_dir: /ansible/
+    doc_root: /var/www/html/ansible/
+    max_clients: 10
+ 
+  vars_prompt:
+    - name: username
+      prompt: What is your name ? What is your favirote color ? 
 
   tasks:
-  - name: Ensure Apache is installed.
+  - name: Ensure Apache is installed
     yum: name=httpd state=present
+    when: ansible_os_family == "RedHat"
 
-  - name: Start and Enable Apache service.
+  - name: Start and Enable Apache service
     service: name=httpd enabled=yes state=started
+
+  - name: Deploy configuraiton File
+    template: src=templates/httpd.j2 dest=/etc/httpd/conf/httpd.conf
+    notify:
+      - Restart Apache
+
+  - name: Create doc root
+    file: path={{ doc_root }} state=directory mode=0777
+
+  - name: Copy Site Files
+    template: src=templates/index.j2 dest={{ doc_root }}/index.html mode=0777
+
+  handlers:
+    - name: Restart Apache
+      service: name=httpd state=restarted
  
 - hosts: dbservers
   sudo: yes
@@ -15,6 +40,7 @@
   tasks:
   - name: Install mysql server.
     yum: name=mysql-server state=present
+    when: ansible_os_family == "RedHat"
 
   - name: Start mysql service.
     service: name=mysqld enabled=yes state=started
